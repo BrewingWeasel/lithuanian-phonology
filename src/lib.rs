@@ -3,11 +3,17 @@ use std::{collections::HashMap, error::Error};
 
 use pyo3::prelude::*;
 
-fn main() {
-    let value = get_accentuation("gera", "Vardininkas").unwrap();
-    println!("{value}");
-}
-
+/// Takes a word and a case, and returns it with lithuanian accent marks.
+///
+/// # Examples
+///
+/// ```
+/// use lithuanian_phonology::get_accentuation;
+///
+/// assert_eq!(get_accentuation("gera", "Vardininkas"), String::from("gerà"));
+/// assert_eq!(get_accentuation("gera", "UNKNOWN"), String::from("gẽra"));
+/// assert_eq!(get_accentuation("žodį", "Galininkas"), String::from("žõdį"));
+/// ```
 pub fn get_accentuation(word: &str, case: &str) -> Result<String, Box<dyn Error>> {
     Python::with_gil(|py| {
         let phonology = PyModule::import(py, "phonology_engine")?;
@@ -83,6 +89,34 @@ static STRESS_TYPE_1: phf::Map<char, &str> = phf_map! {
     'ą' => "ą́",
     'ų' => "ų́",
 };
+
+static CASE_NAMES: phf::Map<&str, &str> = phf_map! {
+    "nominative" => "Vardininkas",
+    "genitive" => "Kilmininkas",
+    "dative" => "Naudininkas",
+    "accusative" => "Galininkas",
+    "instrumental" => "Įnagininkas",
+    "locative" => "Vietininkas",
+    "vocative" => "Šauksmininkas",
+};
+
+/// Utility function that takes an english name of a case, and converts it into Lithuanian.
+/// Useful when paired with get_accentuation()
+///
+/// # Examples
+///
+/// ```
+/// use lithuanian_phonology::get_case_name;
+///
+/// assert_eq!(get_case_name("Nominative"), "Vardininkas");
+/// assert_eq!(get_case_name("INSTRUMENTAL"), "Įnagininkas");
+/// ```
+pub fn get_case_name(case: &str) -> &str {
+    match CASE_NAMES.get(&case.to_lowercase()) {
+        Some(val) => val,
+        None => "UNKNOWN",
+    }
+}
 
 fn make_stressed<'a>(c: char, stress_type: u8) -> &'a str {
     let map = match stress_type {
