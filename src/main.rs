@@ -1,15 +1,14 @@
 use phf::phf_map;
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error};
 
 use pyo3::prelude::*;
 
-fn main() -> PyResult<()> {
-    let value = get_accentuation("gera", "Vardininkas")?;
+fn main() {
+    let value = get_accentuation("gera", "Vardininkas").unwrap();
     println!("{value}");
-    Ok(())
 }
 
-fn get_accentuation(word: &str, case: &str) -> PyResult<String> {
+pub fn get_accentuation(word: &str, case: &str) -> Result<String, Box<dyn Error>> {
     Python::with_gil(|py| {
         let phonology = PyModule::import(py, "phonology_engine")?;
         let pe = phonology.getattr("PhonologyEngine")?.call0()?;
@@ -39,7 +38,7 @@ fn get_accentuation(word: &str, case: &str) -> PyResult<String> {
             }
         }
 
-        Ok(String::new())
+        Err("Unable to find correct case".into())
     })
 }
 
