@@ -3,18 +3,23 @@ use std::{collections::HashMap, error::Error};
 
 use pyo3::prelude::*;
 
-/// Takes a word and a case, and returns it with lithuanian accent marks.
+/// Takes a word, an optional case and number, and returns it with lithuanian accent marks.
+/// If the case or number is left out, it will simply go with the first value it finds.
 ///
 /// # Examples
 ///
 /// ```
 /// use lithuanian_phonology::get_accentuation;
 ///
-/// assert_eq!(get_accentuation("gera", "Vardininkas"), String::from("gerà"));
-/// assert_eq!(get_accentuation("gera", "UNKNOWN"), String::from("gẽra"));
-/// assert_eq!(get_accentuation("žodį", "Galininkas"), String::from("žõdį"));
+/// assert_eq!(get_accentuation("gera", Some("Vardininkas"), None), String::from("gerà"));
+/// assert_eq!(get_accentuation("gera", Some("UNKNOWN"), None), String::from("gẽra"));
+/// assert_eq!(get_accentuation("žodį", Some("Galininkas"), Some("vienaskaita")), String::from("žõdį"));
 /// ```
-pub fn get_accentuation(word: &str, case: &str) -> Result<String, Box<dyn Error>> {
+pub fn get_accentuation(
+    word: &str,
+    case: Option<&str>,
+    number: Option<&str>,
+) -> Result<String, Box<dyn Error>> {
     Python::with_gil(|py| {
         let phonology = PyModule::import(py, "phonology_engine")?;
         let pe = phonology.getattr("PhonologyEngine")?.call0()?;
@@ -31,8 +36,20 @@ pub fn get_accentuation(word: &str, case: &str) -> Result<String, Box<dyn Error>
             .extract()?;
 
         for i in version {
-            let current_case: &str = i.get("grammatical_case").unwrap().extract(py)?;
-            if current_case == case {
+            let mut meets_criteria = true;
+            if let Some(c) = case {
+                let current_case: &str = i.get("grammatical_case").unwrap().extract(py)?;
+                if current_case != c {
+                    meets_criteria = false;
+                }
+            }
+            if let Some(n) = number {
+                let current_number: &str = i.get("number").unwrap().extract(py)?;
+                if current_number != n {
+                    meets_criteria = false;
+                }
+            }
+            if meets_criteria {
                 let stress_type: u8 = i.get("stress_type").unwrap().extract(py)?;
                 let stressed_letter_index: usize =
                     i.get("stressed_letter_index").unwrap().extract(py)?;
